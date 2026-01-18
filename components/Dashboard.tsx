@@ -1,67 +1,108 @@
-import React from 'react';
-import { motion } from 'framer-motion';
+import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Project, ChartData } from '../types';
 import ProjectCard from './ProjectCard';
 import AnalyticsPanel from './AnalyticsPanel';
 import FluidButton from './FluidButton';
-import { Plus, Sparkles, Wind } from 'lucide-react';
+import FluidBackground from './FluidBackground';
+import { Plus, Sparkles, Wind, X, Loader2, Send } from 'lucide-react';
+import { api } from '../services/api';
 
-const mockProjects: Project[] = [
-  {
-    id: '1',
-    title: 'Neo-Tokyo Vertical Forest',
-    location: 'Shibuya, Tokyo',
-    status: 'In Progress',
-    progress: 75,
-    thumbnail: 'https://picsum.photos/600/800?random=1',
-    stats: { carbon: 450, efficiency: 92, timeline: '2025' },
-    collaborators: ['https://picsum.photos/50/50?random=10', 'https://picsum.photos/50/50?random=11']
-  },
-  {
-    id: '2',
-    title: 'Nordic Sea Museum',
-    location: 'Oslo, Norway',
-    status: 'Concept',
-    progress: 30,
-    thumbnail: 'https://picsum.photos/600/800?random=2',
-    stats: { carbon: 120, efficiency: 88, timeline: '2026' },
-    collaborators: ['https://picsum.photos/50/50?random=12']
-  },
-  {
-    id: '3',
-    title: 'Desert Bloom Pavilion',
-    location: 'Dubai, UAE',
-    status: 'Review',
-    progress: 90,
-    thumbnail: 'https://picsum.photos/600/800?random=3',
-    stats: { carbon: 850, efficiency: 95, timeline: '2024' },
-    collaborators: ['https://picsum.photos/50/50?random=13', 'https://picsum.photos/50/50?random=14', 'https://picsum.photos/50/50?random=15']
-  }
-];
+interface DashboardProps {
+  role?: 'architect' | 'owner';
+}
 
-const efficiencyData: ChartData[] = [
-  { name: 'Jan', value: 65 },
-  { name: 'Feb', value: 72 },
-  { name: 'Mar', value: 68 },
-  { name: 'Apr', value: 85 },
-  { name: 'May', value: 82 },
-  { name: 'Jun', value: 94 },
-];
+const Dashboard: React.FC<DashboardProps> = ({ role = 'architect' }) => {
+  // State: Projects & Selection
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
-const carbonData: ChartData[] = [
-    { name: 'Ph1', value: 100 },
-    { name: 'Ph2', value: 80 },
-    { name: 'Ph3', value: 60 },
-    { name: 'Ph4', value: 45 },
-    { name: 'Ph5', value: 30 },
-  ];
+  // State: Analytics
+  const [impactData, setImpactData] = useState<{ efficiency: ChartData[], carbon: ChartData[] } | null>(null);
+  const [impactLoading, setImpactLoading] = useState(false);
 
-const Dashboard: React.FC = () => {
+  // State: AI & Modals
+  const [showAi, setShowAi] = useState(false);
+  const [aiPrompt, setAiPrompt] = useState('');
+  const [aiSuggestions, setAiSuggestions] = useState<string[]>([]);
+  const [aiLoading, setAiLoading] = useState(false);
+  
+  const [showNewProject, setShowNewProject] = useState(false);
+  const [newProjectTitle, setNewProjectTitle] = useState('');
+  const [creatingProject, setCreatingProject] = useState(false);
+
+  // Effect: Fetch Projects on Mount
+  useEffect(() => {
+    const fetchProjects = async () => {
+      try {
+        const data = await api.listProjects();
+        setProjects(data);
+      } catch (err) {
+        console.error("Failed to fetch projects", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchProjects();
+  }, []);
+
+  // Effect: Fetch Impact Data when Selection Changes
+  useEffect(() => {
+    if (!selectedId) {
+        setImpactData(null);
+        return;
+    }
+    
+    const fetchImpact = async () => {
+      setImpactLoading(true);
+      try {
+        const data = await api.getProjectImpact(selectedId);
+        setImpactData(data);
+      } catch (err) {
+        console.error("Failed to fetch impact data", err);
+      } finally {
+        setImpactLoading(false);
+      }
+    };
+    fetchImpact();
+  }, [selectedId]);
+
+  // Handlers
+  const handleCreateProject = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newProjectTitle) return;
+    
+    setCreatingProject(true);
+    try {
+        const newProj = await api.createProject({ title: newProjectTitle });
+        setProjects(prev => [...prev, newProj]);
+        setSelectedId(newProj.id); // Auto-focus new project
+        setShowNewProject(false);
+        setNewProjectTitle('');
+    } finally {
+        setCreatingProject(false);
+    }
+  };
+
+  const handleAiAssist = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!aiPrompt) return;
+
+    setAiLoading(true);
+    try {
+        const results = await api.aiAssist({ projectId: selectedId || undefined, prompt: aiPrompt });
+        setAiSuggestions(results);
+    } finally {
+        setAiLoading(false);
+    }
+  };
+
   return (
-    <div className="relative z-10 w-full max-w-7xl mx-auto px-6 py-12 pb-32">
+    <div className="relative z-10 w-full max-w-7xl mx-auto px-6 py-12 pb-32" data-zone="main-layout">
       
-      {/* Header Section */}
-      <div className="flex flex-col md:flex-row justify-between items-end mb-12 gap-6">
+      {/* ZONE: Top Bar */}
+      <div className="flex flex-col md:flex-row justify-between items-end mb-12 gap-6" data-zone="top-bar">
         <motion.div 
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
@@ -69,13 +110,17 @@ const Dashboard: React.FC = () => {
         >
           <div className="flex items-center gap-3 mb-2">
             <div className="w-2 h-2 rounded-full bg-flux-magenta animate-pulse" />
-            <span className="text-flux-magenta font-medium tracking-wider text-sm uppercase">Live Studio</span>
+            <span className="text-flux-magenta font-medium tracking-wider text-sm uppercase">
+              {role === 'owner' ? 'Portfolio View' : 'Live Studio'}
+            </span>
           </div>
           <h1 className="text-5xl md:text-6xl font-light text-white tracking-tight leading-tight">
             Fluid <span className="text-transparent bg-clip-text bg-gradient-to-r from-flux-deepBlue to-flux-magenta">Thinking</span>.
           </h1>
           <p className="text-white/40 mt-4 max-w-md text-lg font-light">
-            Your collaborative surface for organic architectural design and sustainable analysis.
+            {role === 'owner' 
+              ? 'Real-time visibility into your sustainable assets.' 
+              : 'Your collaborative surface for organic architectural design.'}
           </p>
         </motion.div>
 
@@ -85,10 +130,17 @@ const Dashboard: React.FC = () => {
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.8, delay: 0.2 }}
         >
-          <FluidButton variant="glass" icon={<Sparkles className="w-4 h-4" />}>
+          <FluidButton 
+            variant="glass" 
+            icon={<Sparkles className="w-4 h-4" />}
+            onClick={() => setShowAi(true)}
+          >
             AI Assist
           </FluidButton>
-          <FluidButton icon={<Plus className="w-4 h-4" />}>
+          <FluidButton 
+            icon={<Plus className="w-4 h-4" />}
+            onClick={() => setShowNewProject(true)}
+          >
             New Project
           </FluidButton>
         </motion.div>
@@ -97,51 +149,98 @@ const Dashboard: React.FC = () => {
       {/* Main Grid Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         
-        {/* Left Column: Projects */}
-        <div className="lg:col-span-8 flex flex-col gap-8">
+        {/* ZONE: Main Surface (Projects) */}
+        <div className="lg:col-span-8 flex flex-col gap-8" data-zone="main-surface">
             <div className="flex justify-between items-center text-white/80">
                 <h2 className="text-2xl font-light">Active Projects</h2>
                 <button className="text-sm text-flux-magenta hover:text-white transition-colors">View All</button>
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {mockProjects.map((p) => (
-                    <ProjectCard key={p.id} project={p} onSelect={() => {}} />
-                ))}
-                 {/* Empty State / Add New Card Placeholder */}
-                 <motion.div 
-                    className="group border border-dashed border-white/10 rounded-[2rem] flex flex-col items-center justify-center p-8 cursor-pointer hover:bg-white/5 transition-colors"
-                    whileHover={{ scale: 0.98 }}
-                 >
-                    <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-flux-deepBlue/20 transition-colors mb-4">
-                        <Plus className="w-6 h-6 text-white/40 group-hover:text-flux-deepBlue" />
-                    </div>
-                    <span className="text-white/40 font-light">Start Concept</span>
-                 </motion.div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 min-h-[400px]">
+                <AnimatePresence mode="popLayout">
+                  {loading ? (
+                    // Loading Skeletons
+                    [1, 2].map(i => (
+                        <motion.div 
+                            key={`skel-${i}`} 
+                            className="h-[380px] rounded-[2rem] bg-white/5 animate-pulse"
+                            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                        />
+                    ))
+                  ) : projects.length === 0 ? (
+                    // Empty State
+                    <motion.div 
+                        initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                        className="col-span-full border border-dashed border-white/10 rounded-[2rem] flex flex-col items-center justify-center p-12"
+                    >
+                         <p className="text-white/40">No active projects.</p>
+                    </motion.div>
+                  ) : (
+                    // Project List
+                    projects.map((p) => (
+                        <ProjectCard 
+                          key={p.id} 
+                          project={p} 
+                          isSelected={selectedId === p.id}
+                          onSelect={(proj) => setSelectedId(proj.id)} 
+                        />
+                    ))
+                  )}
+                </AnimatePresence>
+
+                 {/* Add New Trigger Card */}
+                 {!loading && (
+                    <motion.div 
+                        className="group border border-dashed border-white/10 rounded-[2rem] flex flex-col items-center justify-center p-8 cursor-pointer hover:bg-white/5 transition-colors h-[380px]"
+                        whileHover={{ scale: 0.98 }}
+                        onClick={() => setShowNewProject(true)}
+                    >
+                        <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-flux-deepBlue/20 transition-colors mb-4">
+                            <Plus className="w-6 h-6 text-white/40 group-hover:text-flux-deepBlue" />
+                        </div>
+                        <span className="text-white/40 font-light">Start Concept</span>
+                    </motion.div>
+                 )}
             </div>
         </div>
 
-        {/* Right Column: Analytics & Stats */}
-        <div className="lg:col-span-4 flex flex-col gap-6">
+        {/* ZONE: Right Context Panel (Analytics) */}
+        <div className="lg:col-span-4 flex flex-col gap-6" data-zone="right-context-panel">
              <div className="flex items-center gap-2 text-white/80 mb-2">
                 <Wind className="w-5 h-5 text-flux-deepBlue" />
                 <h2 className="text-2xl font-light">Impact</h2>
             </div>
             
-            <div className="h-[280px]">
-                <AnalyticsPanel 
-                    title="Energy Efficiency" 
-                    subtitle="Average performance across active sites"
-                    data={efficiencyData}
-                />
-            </div>
-            <div className="h-[280px]">
-                <AnalyticsPanel 
-                    title="Carbon Reduction" 
-                    subtitle="Projected lifecycle offset (tons)"
-                    data={carbonData}
-                />
-            </div>
+            {selectedId ? (
+                <>
+                    <div className="h-[280px]">
+                        {impactLoading ? (
+                             <div className="h-full w-full rounded-[2rem] bg-white/5 animate-pulse" />
+                        ) : impactData ? (
+                            <AnalyticsPanel 
+                                title="Energy Efficiency" 
+                                subtitle="Performance trend"
+                                data={impactData.efficiency}
+                            />
+                        ) : null}
+                    </div>
+                    <div className="h-[280px]">
+                        {impactLoading ? (
+                             <div className="h-full w-full rounded-[2rem] bg-white/5 animate-pulse" />
+                        ) : impactData ? (
+                            <AnalyticsPanel 
+                                title="Carbon Reduction" 
+                                subtitle="Lifecycle offset (tons)"
+                                data={impactData.carbon}
+                            />
+                        ) : null}
+                    </div>
+                </>
+            ) : (
+                <div className="h-[560px] rounded-[2rem] border border-white/5 flex items-center justify-center bg-white/5 p-6 text-center">
+                    <p className="text-white/30 text-sm">Select a project to view real-time impact analysis.</p>
+                </div>
+            )}
 
             {/* AI Insight Card */}
             <motion.div 
@@ -153,15 +252,111 @@ const Dashboard: React.FC = () => {
                 </div>
                 <h3 className="text-white font-medium mb-2">AI Suggestion</h3>
                 <p className="text-white/60 text-sm leading-relaxed">
-                    Based on "Neo-Tokyo Vertical Forest", replacing the glazing specification could reduce thermal load by 14% without affecting light transmission.
+                    {selectedId 
+                        ? "Optimizing material selection for current phase could improve carbon score by 12%." 
+                        : "Select a project to generate specific insights."}
                 </p>
-                <button className="mt-4 text-xs font-bold uppercase tracking-wider text-flux-magenta hover:text-white transition-colors">
-                    Review Simulation
-                </button>
+                {selectedId && (
+                    <button className="mt-4 text-xs font-bold uppercase tracking-wider text-flux-magenta hover:text-white transition-colors">
+                        Review Simulation
+                    </button>
+                )}
             </motion.div>
         </div>
 
       </div>
+
+      {/* AI Assist Drawer Overlay */}
+      <AnimatePresence>
+        {showAi && (
+            <motion.div 
+                initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }}
+                className="fixed inset-y-0 right-0 w-full md:w-[400px] bg-flux-midnight border-l border-white/10 z-[60] p-6 shadow-2xl overflow-y-auto"
+            >
+                <div className="flex justify-between items-center mb-8">
+                    <h3 className="text-xl font-light">AI Assistant</h3>
+                    <button onClick={() => setShowAi(false)} className="p-2 hover:bg-white/10 rounded-full">
+                        <X className="w-5 h-5 text-white/60" />
+                    </button>
+                </div>
+                
+                <form onSubmit={handleAiAssist} className="mb-6 relative">
+                    <input 
+                        autoFocus
+                        type="text" 
+                        value={aiPrompt}
+                        onChange={(e) => setAiPrompt(e.target.value)}
+                        placeholder="Ask about materials, codes, or efficiency..."
+                        className="w-full bg-white/5 border border-white/10 rounded-xl p-4 pr-12 text-white placeholder-white/30 focus:outline-none focus:border-flux-magenta/50"
+                    />
+                    <button type="submit" className="absolute right-3 top-1/2 -translate-y-1/2 p-2 hover:text-flux-magenta text-white/40 transition-colors">
+                        {aiLoading ? <Loader2 className="w-4 h-4 animate-spin"/> : <Send className="w-4 h-4" />}
+                    </button>
+                </form>
+
+                <div className="space-y-4">
+                    {aiSuggestions.map((s, i) => (
+                        <motion.div 
+                            key={i}
+                            initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+                            className="p-4 rounded-xl bg-white/5 border border-white/5 text-sm text-white/80"
+                        >
+                            {s}
+                        </motion.div>
+                    ))}
+                    {aiSuggestions.length === 0 && !aiLoading && (
+                        <p className="text-white/30 text-center text-sm">No recent queries.</p>
+                    )}
+                </div>
+            </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* New Project Modal Overlay */}
+      <AnimatePresence>
+        {showNewProject && (
+            <motion.div 
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-center justify-center p-6"
+            >
+                <motion.div 
+                    initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
+                    className="bg-flux-midnight border border-white/10 rounded-[2rem] p-8 w-full max-w-md shadow-2xl relative overflow-hidden"
+                >
+                    <FluidBackground /> {/* Mini background for modal */}
+                    <div className="relative z-10">
+                        <div className="flex justify-between items-center mb-6">
+                            <h3 className="text-2xl font-light">New Project</h3>
+                            <button onClick={() => setShowNewProject(false)} className="p-2 hover:bg-white/10 rounded-full">
+                                <X className="w-5 h-5 text-white/60" />
+                            </button>
+                        </div>
+                        <form onSubmit={handleCreateProject} className="flex flex-col gap-4">
+                            <div>
+                                <label className="block text-xs text-white/40 mb-2 uppercase tracking-wider">Project Title</label>
+                                <input 
+                                    autoFocus
+                                    type="text" 
+                                    value={newProjectTitle}
+                                    onChange={(e) => setNewProjectTitle(e.target.value)}
+                                    placeholder="e.g. Coastal Retreat"
+                                    className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-white focus:outline-none focus:border-flux-magenta/50"
+                                />
+                            </div>
+                            <FluidButton 
+                                type="submit" 
+                                className="w-full justify-center mt-4" 
+                                disabled={creatingProject}
+                            >
+                                {creatingProject ? 'Creating...' : 'Initialize Project'}
+                            </FluidButton>
+                        </form>
+                    </div>
+                </motion.div>
+            </motion.div>
+        )}
+      </AnimatePresence>
+
     </div>
   );
 };

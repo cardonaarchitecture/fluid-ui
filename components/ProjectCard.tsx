@@ -2,23 +2,40 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Project } from '../types';
 import { MapPin, Users, Activity } from 'lucide-react';
+import { clsx } from 'clsx';
 
 interface ProjectCardProps {
   project: Project;
+  isSelected?: boolean;
   onSelect: (project: Project) => void;
 }
 
-const ProjectCard: React.FC<ProjectCardProps> = ({ project, onSelect }) => {
+const ProjectCard: React.FC<ProjectCardProps> = ({ project, onSelect, isSelected }) => {
   return (
     <motion.div
       layoutId={`card-${project.id}`}
-      className="group relative bg-flux-surface backdrop-blur-lg border border-flux-border rounded-[2rem] overflow-hidden cursor-pointer"
+      className={clsx(
+        "group relative bg-flux-surface backdrop-blur-lg border rounded-[2rem] overflow-hidden cursor-pointer transition-all duration-500",
+        isSelected 
+          ? "border-flux-magenta/50 shadow-[0_0_30px_rgba(212,52,254,0.15)] bg-white/5" 
+          : "border-flux-border hover:border-white/20"
+      )}
       whileHover={{ y: -5 }}
       onClick={() => onSelect(project)}
       initial={{ opacity: 0, scale: 0.9 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: 0.4 }}
     >
+      {/* Selection Glow Background */}
+      {isSelected && (
+        <motion.div 
+          layoutId="selection-glow"
+          className="absolute inset-0 bg-flux-magenta/5 z-0"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+        />
+      )}
+
       {/* Image Background with Gradient Overlay */}
       <div className="absolute inset-0 z-0">
         <img 
@@ -31,16 +48,22 @@ const ProjectCard: React.FC<ProjectCardProps> = ({ project, onSelect }) => {
 
       <div className="relative z-10 p-6 flex flex-col h-[320px] justify-between">
         <div className="flex justify-between items-start">
-          <span className="px-3 py-1 bg-white/10 backdrop-blur-md rounded-full text-xs font-medium text-white/80 border border-white/5">
+          <span className={clsx(
+            "px-3 py-1 backdrop-blur-md rounded-full text-xs font-medium border transition-colors",
+            isSelected ? "bg-flux-magenta/20 border-flux-magenta/30 text-white" : "bg-white/10 text-white/80 border-white/5"
+          )}>
             {project.status}
           </span>
           <div className="p-2 bg-white/5 rounded-full hover:bg-white/10 transition-colors">
-            <Activity className="w-4 h-4 text-flux-magenta" />
+            <Activity className={clsx("w-4 h-4", isSelected ? "text-white" : "text-flux-magenta")} />
           </div>
         </div>
 
         <div>
-          <h3 className="text-2xl font-light text-white mb-1 group-hover:text-flux-magenta transition-colors duration-300">
+          <h3 className={clsx(
+            "text-2xl font-light mb-1 transition-colors duration-300",
+            isSelected ? "text-flux-magenta" : "text-white group-hover:text-flux-magenta"
+          )}>
             {project.title}
           </h3>
           <div className="flex items-center gap-2 text-white/50 text-sm mb-4">

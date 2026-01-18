@@ -3,6 +3,11 @@ import { motion } from 'framer-motion';
 import { Home, Layers, Box, Settings, Search } from 'lucide-react';
 import { NavItem } from '../types';
 
+interface NavigationProps {
+  activeRoute?: string;
+  onNavigate?: (route: string) => void;
+}
+
 const navItems: NavItem[] = [
   { id: 'dashboard', label: 'Dashboard', icon: Home },
   { id: 'projects', label: 'Projects', icon: Layers },
@@ -10,11 +15,28 @@ const navItems: NavItem[] = [
   { id: 'settings', label: 'Settings', icon: Settings },
 ];
 
-const Navigation: React.FC = () => {
-  const [active, setActive] = React.useState('dashboard');
+const Navigation: React.FC<NavigationProps> = ({ 
+  activeRoute = 'dashboard', 
+  onNavigate 
+}) => {
+  // Use local state only if no external router control is provided (fallback)
+  const [localActive, setLocalActive] = React.useState(activeRoute);
+  const active = onNavigate ? activeRoute : localActive;
+
+  const handleNav = (id: string) => {
+    if (onNavigate) {
+      onNavigate(id);
+    } else {
+      setLocalActive(id);
+    }
+  };
 
   return (
-    <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50">
+    // ZONE: Bottom Dock
+    <div 
+      className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50"
+      data-zone="bottom-dock"
+    >
       <motion.div 
         className="flex items-center gap-2 p-2 rounded-full bg-white/5 backdrop-blur-2xl border border-white/10 shadow-2xl shadow-flux-deepBlue/20"
         initial={{ y: 100, opacity: 0 }}
@@ -26,7 +48,7 @@ const Navigation: React.FC = () => {
             return (
               <button
                 key={item.id}
-                onClick={() => setActive(item.id)}
+                onClick={() => handleNav(item.id)}
                 className="relative px-6 py-3 rounded-full flex flex-col items-center justify-center gap-1 group transition-all duration-300"
               >
                 {isActive && (

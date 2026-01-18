@@ -3,7 +3,11 @@ import { motion } from 'framer-motion';
 
 const FluidBackground: React.FC = () => {
   return (
-    <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none">
+    // ZONE: Ambient Background Surface
+    <div 
+      className="fixed inset-0 z-0 overflow-hidden pointer-events-none" 
+      data-zone="ambient-background"
+    >
       <div className="absolute inset-0 bg-flux-midnight" />
       
       {/* Primary Blob - Magenta/Blue mix */}
