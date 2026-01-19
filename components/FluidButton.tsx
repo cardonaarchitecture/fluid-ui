@@ -3,9 +3,10 @@ import { motion, HTMLMotionProps } from 'framer-motion';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
-interface FluidButtonProps extends HTMLMotionProps<"button"> {
+interface FluidButtonProps extends Omit<HTMLMotionProps<"button">, "children"> {
   variant?: 'primary' | 'secondary' | 'glass';
   icon?: React.ReactNode;
+  children: React.ReactNode;
 }
 
 const FluidButton: React.FC<FluidButtonProps> = ({ 
@@ -37,10 +38,10 @@ const FluidButton: React.FC<FluidButtonProps> = ({
       />
       
       {/* Content */}
-      <span className="relative z-10 flex items-center gap-2">
+      <motion.span className="relative z-10 flex items-center gap-2">
         {icon}
         {children}
-      </span>
+      </motion.span>
 
       {/* Glow Effect */}
       <div className="absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 bg-gradient-to-r from-flux-magenta/20 to-flux-deepBlue/20 blur-md -z-10" />

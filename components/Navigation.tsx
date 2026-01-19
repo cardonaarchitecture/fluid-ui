@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Home, Layers, Box, Settings, Search } from 'lucide-react';
@@ -6,20 +7,22 @@ import { NavItem } from '../types';
 interface NavigationProps {
   activeRoute?: string;
   onNavigate?: (route: string) => void;
+  onToggleSettings?: () => void;
+  onToggleSearch?: () => void;
 }
 
 const navItems: NavItem[] = [
   { id: 'dashboard', label: 'Dashboard', icon: Home },
   { id: 'projects', label: 'Projects', icon: Layers },
   { id: 'assets', label: 'Assets', icon: Box },
-  { id: 'settings', label: 'Settings', icon: Settings },
 ];
 
 const Navigation: React.FC<NavigationProps> = ({ 
   activeRoute = 'dashboard', 
-  onNavigate 
+  onNavigate,
+  onToggleSettings,
+  onToggleSearch
 }) => {
-  // Use local state only if no external router control is provided (fallback)
   const [localActive, setLocalActive] = React.useState(activeRoute);
   const active = onNavigate ? activeRoute : localActive;
 
@@ -72,11 +75,25 @@ const Navigation: React.FC<NavigationProps> = ({
             )
         })}
 
+        {/* Separator */}
         <div className="w-px h-6 bg-white/10 mx-2" />
 
-        <button className="p-3 rounded-full hover:bg-white/10 text-white/60 hover:text-white transition-colors">
+        {/* Search */}
+        <button 
+          onClick={onToggleSearch}
+          className="p-3 rounded-full hover:bg-white/10 text-white/60 hover:text-white transition-colors"
+        >
             <Search className="w-5 h-5" />
         </button>
+
+        {/* Settings Toggle */}
+        <button 
+          onClick={onToggleSettings}
+          className="p-3 rounded-full hover:bg-white/10 text-white/60 hover:text-white transition-colors group relative"
+        >
+            <Settings className="w-5 h-5 group-hover:rotate-90 transition-transform duration-500" />
+        </button>
+
       </motion.div>
     </div>
   );

@@ -1,73 +1,173 @@
-import React from 'react';
-import { motion } from 'framer-motion';
 
-const FluidBackground: React.FC = () => {
+import React, { useEffect } from 'react';
+import { motion, useMotionValue, useSpring, useTransform, SpringOptions } from 'framer-motion';
+import { clsx } from 'clsx';
+import { FluidBackgroundSettings, defaultSettings } from '../types/settings';
+
+interface FluidBackgroundProps {
+  isFocused?: boolean;
+  className?: string;
+  settings?: FluidBackgroundSettings;
+}
+
+const FluidBackground: React.FC<FluidBackgroundProps> = ({ 
+  isFocused = false, 
+  className,
+  settings = defaultSettings 
+}) => {
+  const mouseX = useMotionValue(0);
+  const mouseY = useMotionValue(0);
+
+  // Dynamic spring config from settings
+  const springConfig: SpringOptions = { 
+    damping: settings.springDamping, 
+    stiffness: settings.springStiffness, 
+    mass: settings.springMass 
+  };
+  
+  const x = useSpring(mouseX, springConfig);
+  const y = useSpring(mouseY, springConfig);
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      const { innerWidth, innerHeight } = window;
+      mouseX.set(e.clientX - innerWidth / 2);
+      mouseY.set(e.clientY - innerHeight / 2);
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    return () => window.removeEventListener('mousemove', handleMouseMove);
+  }, [mouseX, mouseY, settings.springMass, settings.springDamping, settings.springStiffness]);
+
+  // Dynamic Parallax divisors
+  const xPrimary = useTransform(x, (val) => val / settings.parallaxPrimaryDivisor);
+  const yPrimary = useTransform(y, (val) => val / settings.parallaxPrimaryDivisor);
+  
+  const xSecondary = useTransform(x, (val) => val / settings.parallaxSecondaryDivisor);
+  const ySecondary = useTransform(y, (val) => val / settings.parallaxSecondaryDivisor);
+
+  const xAccent = useTransform(x, (val) => val / settings.parallaxAccentDivisor);
+  const yAccent = useTransform(y, (val) => val / settings.parallaxAccentDivisor);
+
+  // Dynamic Variants
+  const primaryVariants = {
+    idle: {
+      scale: [1, 1.05, 0.98, 1],
+      opacity: [0.35 * settings.globalOpacity, 0.45 * settings.globalOpacity, 0.35 * settings.globalOpacity],
+      rotate: [0, settings.primaryRotation, -settings.primaryRotation, 0],
+      transition: { duration: settings.primaryDuration, repeat: Infinity, ease: "easeInOut" as const }
+    },
+    focused: {
+      scale: 0.95,
+      opacity: 0.15 * settings.globalOpacity * settings.focusDampening, 
+      rotate: 0,
+      transition: { duration: 2, ease: "easeInOut" as const } 
+    }
+  };
+
+  const secondaryVariants = {
+    idle: {
+      scale: [1, 1.1, 0.9, 1],
+      opacity: [0.25 * settings.globalOpacity, 0.35 * settings.globalOpacity, 0.25 * settings.globalOpacity],
+      rotate: [0, -settings.secondaryRotation, settings.secondaryRotation, 0],
+      transition: { duration: settings.secondaryDuration, repeat: Infinity, ease: "easeInOut" as const }
+    },
+    focused: {
+      scale: 0.9,
+      opacity: 0.1 * settings.globalOpacity * settings.focusDampening,
+      rotate: 0,
+      transition: { duration: 2, ease: "easeInOut" as const }
+    }
+  };
+
+  const accentVariants = {
+    idle: {
+        opacity: [0.15 * settings.globalOpacity, 0.1 * settings.globalOpacity, 0.15 * settings.globalOpacity],
+        scale: [1, 1.2, 0.9, 1],
+        rotate: [0, settings.accentRotation, -settings.accentRotation, 0],
+        transition: { duration: settings.accentDuration, repeat: Infinity, ease: "easeInOut" as const }
+    },
+    focused: {
+        opacity: 0.05 * settings.globalOpacity * settings.focusDampening,
+        scale: 0.8,
+        rotate: 0,
+        transition: { duration: 2, ease: "easeInOut" as const }
+    }
+  };
+
   return (
-    // ZONE: Ambient Background Surface
     <div 
-      className="fixed inset-0 z-0 overflow-hidden pointer-events-none" 
+      className={clsx("fixed inset-0 z-0 overflow-hidden pointer-events-none transition-colors duration-1000", className)}
+      style={{ backgroundColor: settings.backgroundColor }}
       data-zone="ambient-background"
     >
-      <div className="absolute inset-0 bg-flux-midnight" />
+      <div className="absolute inset-0" style={{ backgroundColor: settings.backgroundColor }} />
       
-      {/* Primary Blob - Magenta/Blue mix */}
+      {/* Primary Blob */}
       <motion.div 
-        className="absolute top-[-10%] left-[-10%] w-[50vw] h-[50vw] rounded-full blur-[100px] opacity-40 mix-blend-screen"
+        className="absolute top-[-15%] left-[-15%] mix-blend-screen"
         style={{
-          background: 'linear-gradient(135deg, #D434FE 0%, #4B50E6 100%)',
+          width: `${settings.primarySize}vw`,
+          height: `${settings.primarySize}vw`,
+          filter: `blur(${settings.primaryBlur}px)`,
+          borderRadius: settings.borderRadius,
+          background: `linear-gradient(135deg, ${settings.primaryColorStart} 0%, ${settings.primaryColorEnd} 100%)`,
+          mixBlendMode: settings.blendMode as any,
+          x: xPrimary,
+          y: yPrimary
         }}
-        animate={{
-          x: [0, 100, -50, 0],
-          y: [0, -50, 50, 0],
-          scale: [1, 1.1, 0.9, 1],
-        }}
-        transition={{
-          duration: 20,
-          repeat: Infinity,
-          ease: "easeInOut"
-        }}
+        variants={primaryVariants}
+        animate={isFocused ? "focused" : "idle"}
       />
 
-      {/* Secondary Blob - Deep Blue */}
+      {/* Secondary Blob */}
       <motion.div 
-        className="absolute bottom-[-10%] right-[-10%] w-[60vw] h-[60vw] rounded-full blur-[120px] opacity-30 mix-blend-screen"
+        className="absolute bottom-[-15%] right-[-15%] mix-blend-screen"
         style={{
-          background: '#4B50E6',
+          width: `${settings.secondarySize}vw`,
+          height: `${settings.secondarySize}vw`,
+          filter: `blur(${settings.secondaryBlur}px)`,
+          borderRadius: settings.borderRadius,
+          background: settings.secondaryColor,
+          mixBlendMode: settings.blendMode as any,
+          x: xSecondary,
+          y: ySecondary
         }}
-        animate={{
-          x: [0, -100, 50, 0],
-          y: [0, 50, -50, 0],
-          scale: [1, 1.2, 0.8, 1],
-        }}
-        transition={{
-          duration: 25,
-          repeat: Infinity,
-          ease: "easeInOut"
-        }}
+        variants={secondaryVariants}
+        animate={isFocused ? "focused" : "idle"}
       />
 
-      {/* Accent Blob - Cyan/Teal hint for depth */}
+      {/* Accent Blob */}
       <motion.div 
-        className="absolute top-[40%] right-[20%] w-[30vw] h-[30vw] rounded-full blur-[80px] opacity-20 mix-blend-screen"
+        className="absolute top-[35%] right-[15%] mix-blend-screen"
         style={{
-          background: '#00C2FF',
+          width: `${settings.accentSize}vw`,
+          height: `${settings.accentSize}vw`,
+          filter: `blur(${settings.accentBlur}px)`,
+          borderRadius: settings.borderRadius,
+          background: settings.accentColor,
+          mixBlendMode: settings.blendMode as any,
+          x: xAccent,
+          y: yAccent
         }}
-        animate={{
-          x: [0, 50, -50, 0],
-          y: [0, -100, 100, 0],
-          opacity: [0.2, 0.1, 0.2],
-        }}
-        transition={{
-          duration: 30,
-          repeat: Infinity,
-          ease: "easeInOut"
-        }}
+        variants={accentVariants}
+        animate={isFocused ? "focused" : "idle"}
       />
       
-      {/* Noise overlay for texture */}
-      <div className="absolute inset-0 opacity-[0.03] mix-blend-overlay" style={{ backgroundImage: 'url("https://www.transparenttextures.com/patterns/noise.png")' }}></div>
+      {/* Noise overlay */}
+      {settings.noiseEnabled && (
+        <motion.div 
+          className="absolute inset-0 mix-blend-overlay" 
+          style={{ 
+            backgroundImage: 'url("https://www.transparenttextures.com/patterns/noise.png")',
+            backgroundSize: settings.noiseSize
+          }}
+          animate={{ opacity: isFocused ? settings.noiseOpacityFocused : settings.noiseOpacityIdle }}
+          transition={{ duration: 1.5 }}
+        />
+      )}
     </div>
   );
 };
 
-export default FluidBackground;
+export default React.memo(FluidBackground);
